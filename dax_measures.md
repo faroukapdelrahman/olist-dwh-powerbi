@@ -80,3 +80,43 @@ Number of orders per customer (used for RFM Frequency).
 Revenue per Customer = [Total Revenue]
 ```
 Contextual alias of Total Revenue when sliced by customer.
+
+## Max Order Date
+```dax
+Max Order Date = MAX(Dim_Order[order_purchase_timestamp])
+```
+Reference point (latest date in the dataset) used to calculate Recency.
+
+## Customer Last Purchase Date
+```dax
+Customer Last Purchase Date = 
+CALCULATE(
+    MAX(Dim_Order[order_purchase_timestamp]),
+    ALLEXCEPT(Dim_Order, Dim_Customer[customer_id])
+)
+```
+Last purchase date per customer, ignoring any other filters applied on the report page.
+
+## Recency (Days)
+```dax
+Recency (Days) = DATEDIFF([Customer Last Purchase Date], [Max Order Date], DAY)
+```
+Days since the customer's last purchase, relative to the latest date in the dataset.
+
+## RFM Segment
+```dax
+RFM Segment = 
+VAR R_Score = IF([Recency (Days)] <= 90, 3, IF([Recency (Days)] <= 180, 2, 1))
+VAR F_Score = IF([Customer Order Count] >= 3, 3, IF([Customer Order Count] >= 2, 2, 1))
+VAR M_Score = IF([Total Revenue] >= 500, 3, IF([Total Revenue] >= 150, 2, 1))
+VAR TotalScore = R_Score + F_Score + M_Score
+RETURN
+    SWITCH(
+        TRUE(),
+        TotalScore >= 8, "Champion",
+        TotalScore >= 6, "Loyal Customers",
+        TotalScore >= 4, "At Risk",
+        "Lost"
+    )
+```
+Classifies each customer into a segment based on Recency, Frequency (Customer Order Count), and Monetary (Total Revenue) scores — a simplified RFM model.
