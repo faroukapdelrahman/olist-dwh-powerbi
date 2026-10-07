@@ -140,16 +140,17 @@ Classifies each customer into a segment based on Recency, Frequency, and Monetar
 ### Repeat Customer Rate %
 ```dax
 Repeat Customer Rate % = 
-VAR CustomersWithMultipleOrders =
-    CALCULATE(
-        DISTINCTCOUNT('dwh Dim_Customer'[customer_unique_id]),
-        FILTER(
-            VALUES('dwh Dim_Customer'[customer_unique_id]),
-            CALCULATE([Customer Order Count]) > 1
-        )
+VAR CustomerOrderCounts =
+    SUMMARIZE(
+        'dwh Dim_Order',
+        'dwh Dim_Customer'[customer_unique_id],
+        "OrderCount", DISTINCTCOUNT('dwh Dim_Order'[order_id])
     )
-VAR TotalCustomers = DISTINCTCOUNT('dwh Dim_Customer'[customer_unique_id])
+VAR CustomersWithMultipleOrders =
+    COUNTROWS(FILTER(CustomerOrderCounts, [OrderCount] > 1))
+VAR TotalCustomers =
+    COUNTROWS(CustomerOrderCounts)
 RETURN
     DIVIDE(CustomersWithMultipleOrders, TotalCustomers)
 ```
-Percentage of customers who placed more than one order. Known result: ~3.12%, consistent with Olist's documented low repeat-purchase rate.
+Percentage of customers who placed more than one order. Calculated using SUMMARIZE to avoid context-transition conflicts with ALLEXCEPT-based measures. Result: ~3.12%, consistent with Olist's documented low repeat-purchase rate.
