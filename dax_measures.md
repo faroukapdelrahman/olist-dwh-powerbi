@@ -154,3 +154,46 @@ RETURN
     DIVIDE(CustomersWithMultipleOrders, TotalCustomers)
 ```
 Percentage of customers who placed more than one order. Calculated using SUMMARIZE to avoid context-transition conflicts with ALLEXCEPT-based measures. Result: ~3.12%, consistent with Olist's documented low repeat-purchase rate.
+
+---
+
+## Products & Sellers Measures
+
+### Seller Order Count
+```dax
+Seller Order Count = DISTINCTCOUNT(Fact_OrderItems[order_id])
+```
+Number of unique orders per seller, used in the Top 10 Sellers table.
+
+---
+
+## Calculated Columns (not Measures)
+
+**Note:** The measures below are written as Calculated Columns, not Measures, because chart Legend fields require a static column value per row rather than a dynamically calculated Measure.
+
+### Dim_Product[category_name_display]
+Created in SQL (see `06_add_display_category_name.sql`) to show clean, readable category names (e.g. "Health beauty" instead of "health_beauty") in visuals.
+
+### Dim_Order[delivery_status]
+Created in SQL (see `07_add_delivery_status.sql`) to classify each order as On Time, Late, or Not Delivered, based on comparing actual vs. estimated delivery dates.
+
+### Dim_Customer[RFM Segment (Column)]
+```dax
+RFM Segment (Column) = 
+VAR CustRecency = CALCULATE([Recency (Days)])
+VAR CustFrequency = CALCULATE([Customer Order Count])
+VAR CustMonetary = CALCULATE([Total Revenue])
+VAR R_Score = IF(CustRecency <= 90, 3, IF(CustRecency <= 180, 2, 1))
+VAR F_Score = IF(CustFrequency >= 3, 3, IF(CustFrequency >= 2, 2, 1))
+VAR M_Score = IF(CustMonetary >= 500, 3, IF(CustMonetary >= 150, 2, 1))
+VAR TotalScore = R_Score + F_Score + M_Score
+RETURN
+    SWITCH(
+        TRUE(),
+        TotalScore >= 8, "Champion",
+        TotalScore >= 6, "Loyal Customers",
+        TotalScore >= 4, "At Risk",
+        "Lost"
+    )
+```
+Row-level version of RFM Segment, required for use in chart Legend fields (Measures cannot be used as Legend/axis category fields).
